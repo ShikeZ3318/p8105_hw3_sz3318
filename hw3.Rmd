@@ -178,7 +178,7 @@ Final Dataset
 ```{r}
 # Merge accelerometer data with covariate data using SEQN
 final_data <- merge(covar_clean, accel_clean, by = "SEQN")
-head(final_data)
+head(final_data,n=10)
 ```
 
 Produce a reader-friendly table for the number of men and women in each education category, and create a visualization of the age distributions for men and women in each education category. Comment on these items.
@@ -214,7 +214,7 @@ total_activity <- final_data %>%
 
 # Check the summary of the total activity data
 summary(total_activity)
-head(total_activity)
+head(total_activity,n=10)
 ```
 
 ```{r}
@@ -247,7 +247,7 @@ average_activity <- final_data %>%
   group_by(mins_num, education, sex) %>%
   summarise(mean_activity = mean(mins, na.rm = TRUE))
 
-average_activity
+head(average_activity,n=10)
 ```
 
 ```{r}
@@ -292,7 +292,7 @@ july_2024 <- july_2024 %>% mutate(year = 2024, month = "July")
 
 # Combine all the data
 combined_df <- bind_rows(jan_2020, july_2020, jan_2024, july_2024)
-head(combined_df)
+head(combined_df,n=10)
 ```
 ```{r}
 # Summarize the total number of rides by year, month, and member_casual
@@ -301,7 +301,7 @@ ride_counts <- combined_df %>%
   summarise(total_rides = n())
 
 # View the table
-head(ride_counts)
+head(ride_counts,n=10)
 
 ```
 Make a table showing the 5 most popular starting stations for July 2024; include the number of rides originating from these stations.
@@ -315,7 +315,7 @@ top_stations_july_2024 <- july_2024 %>%
   slice_head(n = 5)
 
 # View the top 5 starting stations
-head(top_stations_july_2024)
+head(top_stations_july_2024,n=10)
 
 ```
 Make a plot to investigate the effects of day of the week, month, and year on median ride duration. This plot can include one or more panels, but should facilitate comparison across all variables of interest. Comment on your observations from this plot.
