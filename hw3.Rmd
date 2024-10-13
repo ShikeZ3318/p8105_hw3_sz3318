@@ -1,0 +1,361 @@
+---
+title: "hw3"
+author: "Shike Zhang"
+date: "2024-10-13"
+output: github_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1
+* The `ny_noaa` dataset contains weather data for New York State. It includes observations from several stations over multiple years. The dataset consists of variables such as `tmax`, `tmin`, `snow`, and `precipitation`. 
+* Missing data is present in many of the variables, especially for temperature and snowfall observations.
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(ggridges)
+library(ggplot2)
+```
+
+```{r}
+library(p8105.datasets)
+data("ny_noaa")
+head(ny_noaa, n= 10)
+```
+
+Do some data cleaning. Create separate variables for year, month, and day. Ensure observations for temperature, precipitation, and snowfall are given in reasonable units. For snowfall, what are the most commonly observed values? Why?
+
+* The most commonly observed snowfull values is 1167149, because snowfall is a relatively rare event in many locations and on most days, especially during non-winter months.
+
+```{r}
+# Clean the data
+ny_noaa_clean <- ny_noaa %>%
+  mutate(
+    year = year(date),
+    month = month(date),
+    day = day(date),
+    # Ensure reasonable units for temperature and precipitation
+    tmax = as.numeric(tmax) / 10, # Assuming tmax is in tenths of degree Celsius
+    tmin = as.numeric(tmin) / 10,
+    snow = as.numeric(snow), # tenths of millimeters
+    prcp = as.numeric(prcp)# tenths of millimeters
+  ) %>%
+  filter(!is.na(tmax), !is.na(tmin), !is.na(snow))
+
+head(ny_noaa_clean,n=10)
+
+# Commonly observed snowfall values
+snow_values <- ny_noaa_clean %>%
+  group_by(snow) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+head(snow_values, n=10)
+
+```
+
+Make a two-panel plot showing the average max temperature in January and in July in each station across years. Is there any observable / interpretable structure? Any outliers?
+
+* The average maximum temperature for January is generally low, since January is a winter month. The majority of the data points are below 0°C or below 10°C .There are a data point, one above 10°C, that appear to be an outlier. This temperatures are unusually high for January and might indicate potential data recording errors or unusually warm days in certain years.
+
+* The average maximum temperature for July is consistently much higher than in January, which is expected since July is a summer month. Most of the values hover between 20°C and 30°C.There are some outliers below 20°C, which might represent cooler than usual days in July and might indicate potential data recording errors
+```{r}
+# Filter for January and July, group by station, year, and month, and compute mean tmax
+jan_july_tmax <- ny_noaa_clean %>%
+  filter(month %in% c(1, 7)) %>%
+  group_by(id, year, month) %>%
+  summarise(mean_tmax = mean(tmax, na.rm = TRUE)) %>%
+  ungroup()
+```
+
+```{r}
+ggplot(jan_july_tmax, aes(x = year, y = mean_tmax, color = factor(month))) +
+  geom_point(alpha = 0.5) + 
+  geom_smooth(se = FALSE) +
+  facet_wrap(.~ month) +
+  labs(
+    title = "Average Max Temperature in January and July Across Stations",
+    x = "Year",
+    y = "Mean Max Temperature (°C)",
+    color = "Month"
+  )
+```
+
+Make a two-panel plot showing (i) tmax vs tmin for the full dataset (note that a scatterplot may not be the best option); and (ii) make a plot showing the distribution of snowfall values greater than 0 and less than 100 separately by year.
+```{r}
+# Scatterplot of tmax vs tmin
+scatter_tmax_tmin <- ggplot(ny_noaa_clean, aes(x = tmin, y = tmax)) +
+  geom_line(alpha = 0.2) +
+  labs(
+    title = "Scatterplot of tmax vs tmin",
+    x = "Min Temperature (°C)",
+    y = "Max Temperature (°C)"
+  )
+
+# Snowfall distribution for values between 0 and 100
+snow_histogram <- ny_noaa_clean %>%
+  filter(snow > 0, snow < 100) %>%
+  ggplot(aes(x = snow)) +
+  geom_histogram(binwidth = 5, fill = "blue", color = "lightblue") +
+  facet_wrap(~ year) +
+  labs(
+    title = "Snowfall Distribution (0-100 mm) by Year",
+    x = "Snowfall (mm)",
+    y = "Count"
+  )
+
+# Display both plots side by side using gridExtra
+gridExtra::grid.arrange(scatter_tmax_tmin, snow_histogram, ncol = 2)
+
+```
+
+## Problem 2
+Load, tidy, merge, and otherwise organize the data sets. Your final dataset should include all originally observed variables; exclude participants less than 21 years of age, and those with missing demographic data; and encode data with reasonable variable classes (i.e. not numeric, and using factors with the ordering of tables and plots in mind).
+
+### Load,tidy, and merge data
+```{r}
+# Load necessary libraries
+library(tidyverse)
+
+# Load demographic and accelerometer data
+covar_data <- read_csv("~/Desktop/DS HW/p8105_hw3_sz3318/data/nhanes_covar.csv")
+head(covar_data)
+
+accel_data <- read_csv("~/Desktop/DS HW/p8105_hw3_sz3318/data/nhanes_accel.csv")
+head(accel_data)
+```
+
+
+```{r}
+# Clean and tidy covar data
+# Filter out participants under 21 and handle missing demographic data
+covar_clean <- covar_data[-c(1:3), ]
+colnames(covar_clean) = c("SEQN", "sex", "age", "BMI", "education")
+covar_clean <- covar_clean[-1, ] # remove duplicate
+
+#Convert to numeric 
+covar_clean$age <- as.numeric(covar_clean$age)
+covar_clean$BMI <- as.numeric(covar_clean$BMI)
+
+# Convert sex and education to factors
+covar_clean$sex <- factor(covar_clean$sex, levels = c("1", "2"), labels = c("Male", "Female"))
+
+# For education, assume: 1 = Less than high school, 2 = High school equivalent, 3 = More than high school
+covar_clean$education <- factor(covar_clean$education, 
+                               levels = c("1", "2", "3"), 
+                               labels = c("Less than high school", "High school equivalent", "More than high school"), 
+                               ordered = TRUE)
+
+covar_clean <- covar_clean %>% 
+  filter(age>21) %>% 
+  drop_na() %>% 
+  arrange(age)
+
+str(covar_clean)
+head(covar_clean,n=10)
+
+```
+
+
+```{r}
+# Tidy, clean accel dataset
+# Ensure MIMS column (if it exists) is numeric, and remove rows with missing values
+accel_clean <- accel_data %>% 
+  pivot_longer(
+    col = "min1":"min1440",
+    names_to = "mins_num",
+    values_to = "mins") %>% 
+    mutate(mins = as.numeric(mins)) %>% 
+    drop_na()
+
+head(accel_clean)
+```
+
+Final Dataset
+```{r}
+# Merge accelerometer data with covariate data using SEQN
+final_data <- merge(covar_clean, accel_clean, by = "SEQN")
+head(final_data)
+```
+
+Produce a reader-friendly table for the number of men and women in each education category, and create a visualization of the age distributions for men and women in each education category. Comment on these items.
+
+```{r}
+library(knitr)
+#Create a table of men and women in each education category
+gender_education_table <- covar_clean %>%
+  group_by(education, sex) %>%
+  summarise(count = n()) %>%
+  spread(sex, count, fill = 0)
+
+gender_education_table %>% 
+  kable(col.names = c("Education Level", "Male", "Female"), caption = "Number of Men and Women by Education Level")
+
+# Visualize the age distributions for men and women in each education category
+ggplot(covar_clean, aes(x = education, y = age, fill = sex)) +
+  geom_violin(trim = FALSE) +
+  geom_boxplot(width = 0.1, position = position_dodge(0.75), outlier.shape = NA) +
+  labs(title = "Age Distribution by Education and Gender", x = "Education Level", y = "Age") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Male" = "lightblue", "Female" = "pink"))
+
+```
+
+
+Traditional analyses of accelerometer data focus on the total activity over the day. Using your tidied dataset, aggregate across minutes to create a total activity variable for each participant. Plot these total activities (y-axis) against age (x-axis); your plot should compare men to women and have separate panels for each education level. Include a trend line or a smooth to illustrate differences. Comment on your plot.
+```{r}
+# Aggregate total activity for each participant
+total_activity <- final_data %>%
+  group_by(SEQN, sex, age, education) %>%
+  summarise(total_activity = sum(mins, na.rm = TRUE))
+
+# Check the summary of the total activity data
+summary(total_activity)
+head(total_activity)
+```
+
+```{r}
+ggplot(total_activity, aes(x = age, y = total_activity, color = sex)) +
+  geom_point(alpha = 0.6) +  # Add scatter points
+  geom_smooth(method = "loess", se = FALSE) +  # Add smooth trend line
+  facet_wrap(~ education, scales = "free_y") +  # Separate panels for education levels
+  labs(title = "Total Activity vs Age by Education and Gender", 
+       x = "Age", 
+       y = "Total Activity (mins)") +
+  theme_minimal() +
+  scale_color_manual(values = c("Male" = "lightblue", "Female" = "pink"))
+```
+* Conclusion: For participants with less than high school education, both men and women show a more consistent decline as they age.
+* Participants with high school equivalent education show a slightly more irregular pattern, with activity peaking in mid-life, 40-50 years, before dropping sharply in older age.
+* Those with more than high school education display an earlier flattening of activity levels, with less drastic declines compared to the other education groups.
+* In most of the panels, women tend to have higher total activity values than men, particularly noticeable in the less than high school and more than high school education categories.
+* Men, especially in the high school equivalent category, show a sharper decline in activity as they age, while women tend to maintain higher activity levels slightly longer.
+
+
+Accelerometer data allows the inspection activity over the course of the day. Make a three-panel plot that shows the 24-hour activity time courses for each education level and use color to indicate sex. Describe in words any patterns or conclusions you can make based on this graph; including smooth trends may help identify differences.
+```{r}
+# Calculate the average activity at each time point (minute) across the 24-hour period
+average_activity <- final_data %>%
+  group_by(mins_num, education, sex) %>%
+  summarise(mean_activity = mean(mins, na.rm = TRUE))
+
+average_activity
+```
+
+```{r}
+# Extract the numeric minute from the 'mins_num' column
+average_activity$mins_num <- as.numeric(gsub("min", "", average_activity$mins_num))
+
+# Create the three-panel plot
+ggplot(average_activity, aes(x = mins_num, y = mean_activity, color = sex)) +
+  geom_line(alpha = 0.5) +
+  facet_wrap(~ education, ncol = 1) +
+  labs(title = "24-Hour Activity Time Courses by Education Level",
+       x = "Minute of the Day",
+       y = "Mean Acitivity(mins)",
+       color = "Sex") +
+  theme_minimal()
+```
+* Conclusion: Across all education levels, there is a noticeable daily activity pattern where activity levels start low at midnight, gradually increase in the morning, peak around midday, and then slowly decline in the evening.
+The trends are relatively similar regardless of education level, indicating a typical diurnal activity pattern shared by participants.
+
+* Participants with "Less than high school" education tend to have slightly higher activity levels during the morning and midday compared to other groups.
+"More than high school" and "High school equivalent" education levels show more moderate activity levels throughout the day, with the peak activity being comparable across the three groups.
+
+## Problem 3
+Produce a reader-friendly table showing the total number of rides in each combination of year and month separating casual riders and Citi Bike members. Comment on these results.
+```{r}
+# Load necessary libraries
+library(tidyverse)
+library(lubridate)
+
+# Read the CSV files
+jan_2020 <- read_csv("~/Desktop/DS HW/p8105_hw3_sz3318/data/citibike/Jan 2020 Citi.csv")
+july_2020 <- read_csv("~/Desktop/DS HW/p8105_hw3_sz3318/data/citibike/July 2020 Citi.csv")
+jan_2024 <- read_csv("~/Desktop/DS HW/p8105_hw3_sz3318/data/citibike/Jan 2024 Citi.csv")
+july_2024 <- read_csv("~/Desktop/DS HW/p8105_hw3_sz3318/data/citibike/July 2020 Citi.csv")
+
+# Add 'year' and 'month' columns
+jan_2020 <- jan_2020 %>% mutate(year = 2020, month = "January")
+july_2020 <- july_2020 %>% mutate(year = 2020, month = "July")
+jan_2024 <- jan_2024 %>% mutate(year = 2024, month = "January")
+july_2024 <- july_2024 %>% mutate(year = 2024, month = "July")
+
+# Combine all the data
+combined_df <- bind_rows(jan_2020, july_2020, jan_2024, july_2024)
+head(combined_df)
+```
+```{r}
+# Summarize the total number of rides by year, month, and member_casual
+ride_counts <- combined_df %>%
+  group_by(year, month, member_casual) %>%
+  summarise(total_rides = n())
+
+# View the table
+head(ride_counts)
+
+```
+Make a table showing the 5 most popular starting stations for July 2024; include the number of rides originating from these stations.
+
+```{r}
+# Filter the data for July 2024
+top_stations_july_2024 <- july_2024 %>%
+  group_by(start_station_name) %>%
+  summarise(num_rides = n()) %>%
+  arrange(desc(num_rides)) %>%
+  slice_head(n = 5)
+
+# View the top 5 starting stations
+head(top_stations_july_2024)
+
+```
+Make a plot to investigate the effects of day of the week, month, and year on median ride duration. This plot can include one or more panels, but should facilitate comparison across all variables of interest. Comment on your observations from this plot.
+
+```{r}
+# Plot the Effect of Day of the Week, Month, and Year on Median Ride Duration
+# Summarize the median duration by year, month, and weekdays
+median_duration <- combined_df %>%
+  group_by(year, month, weekdays) %>%
+  summarise(median_duration = median(duration, na.rm = TRUE))
+
+# Convert weekdays to ordered factor to ensure correct plotting order
+median_duration <- median_duration %>%
+  mutate(weekdays = factor(weekdays, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")))
+
+# Create the faceted plot
+ggplot(median_duration, aes(x = weekdays, y = median_duration, group = interaction(month, year), color = interaction(month, year))) +
+  geom_line() +
+  facet_wrap(~ year + month, ncol = 2) +
+  labs(title = "Median Ride Duration by Day of the Week, Month, and Year",
+       x = "Day of the Week", y = "Median Ride Duration (minutes)",
+       color = "Month and Year") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+* Conclusion: The median ride duration remains fairly stable during the weekdays, with some slight increases during the weekend, especially on Sundays.This trend is visible in both years, indicating that riders tend to spend more time on rides during weekends, likely for recreational purposes.
+
+* In both years, the ride duration is slightly higher in July than in January. This seasonal difference is likely due to warmer weather and longer daylight hours in July, encouraging more leisurely and longer rides.
+
+
+There were relatively few electric Citi Bikes in 2020, but many more are available now. For data in 2024, make a figure that shows the impact of month, membership status, and bike type on the distribution of ride duration. Comment on your results.
+
+```{r}
+# Filter the data for 2024
+df_2024 <- combined_df %>% filter(year == 2024)
+
+# Create a boxplot to show the distribution of ride duration by month, membership status, and bike type
+ggplot(df_2024, aes(x = rideable_type, y = duration, fill = member_casual)) +
+  geom_boxplot() +
+  facet_wrap(~ month) +
+  labs(title = "Ride Duration Distribution by Month, Membership Status, and Bike Type (2024)",
+       x = "Bike Type", y = "Ride Duration (minutes)", fill = "Member Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(limits = c(0, 250), oob = scales::squish) # Limits to handle outliers
+
+```
+* Conclusion:Classic bikes generally have longer ride durations compared to electric bikes for both members and casual riders. This could be because electric bikes allow for faster travel over the same distance, leading to shorter ride times.
+* Casual riders tend to have longer ride durations across both bike types, especially on classic bikes, as seen by the higher median and wider interquartile range (IQR). Members typically have more consistent shorter ride durations, indicating more regular usage, possibly for commuting.
