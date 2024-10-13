@@ -2,7 +2,8 @@
 title: "hw3"
 author: "Shike Zhang"
 date: "2024-10-13"
-output: github_document: default
+output: 
+github_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -115,7 +116,6 @@ gridExtra::grid.arrange(scatter_tmax_tmin, snow_histogram, ncol = 2)
 ## Problem 2
 Load, tidy, merge, and otherwise organize the data sets. Your final dataset should include all originally observed variables; exclude participants less than 21 years of age, and those with missing demographic data; and encode data with reasonable variable classes (i.e. not numeric, and using factors with the ordering of tables and plots in mind).
 
-### Load,tidy, and merge data
 ```{r}
 # Load necessary libraries
 library(tidyverse)
@@ -228,10 +228,15 @@ ggplot(total_activity, aes(x = age, y = total_activity, color = sex)) +
   theme_minimal() +
   scale_color_manual(values = c("Male" = "lightblue", "Female" = "pink"))
 ```
+
 * Conclusion: For participants with less than high school education, both men and women show a more consistent decline as they age.
+
 * Participants with high school equivalent education show a slightly more irregular pattern, with activity peaking in mid-life, 40-50 years, before dropping sharply in older age.
+
 * Those with more than high school education display an earlier flattening of activity levels, with less drastic declines compared to the other education groups.
+
 * In most of the panels, women tend to have higher total activity values than men, particularly noticeable in the less than high school and more than high school education categories.
+
 * Men, especially in the high school equivalent category, show a sharper decline in activity as they age, while women tend to maintain higher activity levels slightly longer.
 
 
@@ -259,6 +264,7 @@ ggplot(average_activity, aes(x = mins_num, y = mean_activity, color = sex)) +
        color = "Sex") +
   theme_minimal()
 ```
+
 * Conclusion: Across all education levels, there is a noticeable daily activity pattern where activity levels start low at midnight, gradually increase in the morning, peak around midday, and then slowly decline in the evening.
 The trends are relatively similar regardless of education level, indicating a typical diurnal activity pattern shared by participants.
 
@@ -335,6 +341,7 @@ ggplot(median_duration, aes(x = weekdays, y = median_duration, group = interacti
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ```
+
 * Conclusion: The median ride duration remains fairly stable during the weekdays, with some slight increases during the weekend, especially on Sundays.This trend is visible in both years, indicating that riders tend to spend more time on rides during weekends, likely for recreational purposes.
 
 * In both years, the ride duration is slightly higher in July than in January. This seasonal difference is likely due to warmer weather and longer daylight hours in July, encouraging more leisurely and longer rides.
@@ -357,5 +364,7 @@ ggplot(df_2024, aes(x = rideable_type, y = duration, fill = member_casual)) +
   scale_y_continuous(limits = c(0, 250), oob = scales::squish) # Limits to handle outliers
 
 ```
+
 * Conclusion:Classic bikes generally have longer ride durations compared to electric bikes for both members and casual riders. This could be because electric bikes allow for faster travel over the same distance, leading to shorter ride times.
+
 * Casual riders tend to have longer ride durations across both bike types, especially on classic bikes, as seen by the higher median and wider interquartile range (IQR). Members typically have more consistent shorter ride durations, indicating more regular usage, possibly for commuting.
